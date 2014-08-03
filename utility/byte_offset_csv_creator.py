@@ -4,7 +4,7 @@
 # Author:     Duke
 # Created:    8/2/2014
 #-------------------------------------------------------------
-# I'm not sure why this is suddenly worth only one byte when compressed ...
+# I'm not sure why newline characters are suddenly worth only one byte when compressed ...
 
 import os
 
