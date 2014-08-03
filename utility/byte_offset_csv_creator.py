@@ -4,6 +4,7 @@
 # Author:     Duke
 # Created:    8/2/2014
 #-------------------------------------------------------------
+# I'm not sure why this is suddenly worth only one byte when compressed ...
 
 import os
 
@@ -27,7 +28,6 @@ def retrieve_byte_offsets(path):
                 string += character
 
             if character == '\n':
-                # I'm not sure why this is suddenly worth only one byte when compressed ...
                 # iterator += 1
                 tracking_letters = True
                 string = ''
@@ -51,7 +51,7 @@ def create_csv(dictionary):
 
 
 def main():
-    path = os.path.join(os.getcwd(), 'pokemon data', 'pokemon_moves.csv')
+    path = os.path.join(os.getcwd().replace('\utility', ''), 'pokemon data', 'pokemon_moves.csv')
     dictionary = retrieve_byte_offsets(path)
     create_csv(dictionary)
 
