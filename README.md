@@ -1,7 +1,8 @@
 pokemon-battle
 ==============
 
-Attempt at an accurate simulation of a 1v1 pokemon battle as a coding exercise, coded in **Python 2.7.6**.
+Attempt at an accurate simulation of a 1v1 pokemon battle as a coding exercise, coded in **Python 2.7.6**. 
+All csv data was received from https://github.com/veekun/pokedex.
 
 ----
 
@@ -19,7 +20,7 @@ IDs and names can be found [in the repo](pokemon%20data/pokemon.csv), or somewhe
  
 **Notably missing**:
 - Any skill that is a status change (tail whip, etc) will flat out be unable to be used
-- Anything that has a secondary effect (takedown recoil damage, moves that have chance to posion, etc) wont work
+- Anything that has a secondary effect (takedown recoil damage, moves that have chance to poison, etc) wont work
 - No items implementation at all (pokemon holding berries, using potions, etc)
 - Innate pokemon abilities aren't in,
 - Evolution (not too big of an issue for a single battle)
