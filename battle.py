@@ -1,41 +1,8 @@
-# -------------------------------------------------------------
-# Name:       Pokemon Battle
-# Purpose:    Simulate a Pokemon 1v1 Battle
-# Author:     Duke
-# Created:    7/24/2014
-# -------------------------------------------------------------
-
-### TODO:
-# Add docstrings to most methods
-# Pokemon checking to evolve on level up, and evolve
-# items, using items, opponent using items
-# ability handler for battle to make all the abilities with effects easier
-# spreading exp for used pokemon in a battle
-#   maybe like, a dict with key for pokemon and value is a list of people who fought,
-#   add if fighting, and on defeat, all pokemon in that list get divided even share of exp
-
-### Bugs?
-# Check damage calculations, there might be some error somewhere,
-#   charmander did 5 damage with a super effective skill,
-#   bulbasaur did 6 damage with a not very effective skill
-# I queued an attack command, died on the turn, but leveled up after getting knocked out,
-#   on my turn if i had hit, i would have killed the pokemon to level up, so something
-#   about my attack still going on even after i died, not registering if the pokemon fainted
-
-## I've got some mixed up logic in battle, where im referring to the player as
-# opponent in situations (like in the battle swap system), and where i copy paste
-# similar code (also in the battle swap system), clean that up eventually
-
-
-# TODO: level of pokemon on swap list, PP on skill list
-
-
 import csv
 import os
 import random
 import sys
 from time import sleep
-from time import time
 
 
 csv_read = lambda name: csv.DictReader(open(os.path.join(os.getcwd(), 'pokemon data', name)))
