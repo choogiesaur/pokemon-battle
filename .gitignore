@@ -35,3 +35,8 @@
 .Trashes
 ehthumbs.db
 Thumbs.db
+
+# Specific files and folders
+unused data
+the testing file.py
+the competition.py
