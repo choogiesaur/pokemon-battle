@@ -103,7 +103,7 @@ class Main:
             turn_order = self.determine_turn(opponent, action, opponent_decision)
 
             for pokemon, enemy, skill in turn_order:
-                pokemon.attack_turn(enemy, skill)
+                pokemon.attack(enemy, skill)
                 if self.pokemon_condition_changed(opponent):
                     break
 
@@ -200,7 +200,7 @@ class Main:
                             print_pause('Go, {}!\n'.format(pokemon.nickname))
 
                             opponents_skill = opponent.computer_ai_turn()
-                            opponent.current_pokemon.attack_turn(pokemon, opponents_skill)
+                            opponent.current_pokemon.attack(pokemon, opponents_skill)
                             self.pokemon_condition_changed(self.player)
 
                             print
@@ -212,9 +212,9 @@ class Main:
 
     def menu_item(self, *args):
         inventory = self.player.battle_inventory()
-
         items = {}
         amount = {}
+
         for item_type, item_list in inventory.iteritems():
             for item in item_list:
                 if item.name in [x for x in items.iterkeys()]:
@@ -226,8 +226,9 @@ class Main:
 
         choice_list = dict(enumerate((key for key in amount.iterkeys()), start=1))
 
-        for number, item in choice_list.iteritems():    # todo: Find a way to also show the KEY of the item
-            print '{}: {} [amt: {}]'.format(number, item.capitalize(), amount[item])
+        # todo: Find a way to also show the KEY of the item
+        for number, item in choice_list.iteritems():
+            print '{0}: {1: <15} [amount: {2}]'.format(number, item.capitalize(), amount[item])
 
         choice = raw_input('\nWhat will you choose? [#]: ')
         print
@@ -236,7 +237,8 @@ class Main:
             item_choice = choice_list[int(choice)]
             item = items[item_choice].pop(0)
 
-            if item.purpose != 'healing':   # TODO
+            # todo
+            if item.purpose != 'healing':
                 print 'No item types other than healing have been coded to work in the game yet.\n'
                 items[item_choice].append(item)
                 return False
@@ -344,14 +346,14 @@ class Main:
         opponent_action = opponent.computer_ai_turn()
 
         if isinstance(opponent_action, Ability):
-            opponent.current_pokemon.attack_turn(self.player.current_pokemon, opponent_action)
+            opponent.current_pokemon.attack(self.player.current_pokemon, opponent_action)
             self.pokemon_condition_changed(self.player)
 
         if isinstance(opponent_action, Item):
             opponent.item_use(opponent_action)
 
     def free_turn_player(self, opponent, players_skill):
-        self.player.current_pokemon.attack_turn(opponent.current_pokemon, players_skill)
+        self.player.current_pokemon.attack(opponent.current_pokemon, players_skill)
         self.pokemon_condition_changed(opponent)
 
 
