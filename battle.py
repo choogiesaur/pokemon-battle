@@ -1,8 +1,8 @@
-import csv
-import os
-import random
-import sys
 from time import sleep
+import random
+import csv
+import sys
+import os
 
 # Logic is mixed between main and trainer classes for decisions
 # It's becoming increasingly convoluted how I handle turns / skipping them
@@ -16,38 +16,41 @@ class Main:
     def __init__(self):
         ## Having two full rosters of pokemon makes the load time ~1.30 seconds, make that better
 
-        level_range = lambda: random.randint(12, 17)
+        level_range = lambda: random.randint(14, 17)
 
         self.player = Trainer('Player', 'Red', computer=False)
         self.opponent = Trainer('Rival', 'Steven')
 
         starters = [
-            Pokemon(level=15, pokemon_id='1'),  # Bulbasaur
-            Pokemon(level=15, pokemon_id='4'),  # Charmander
-            Pokemon(level=15, pokemon_id='7')   # Squirtle
+            Pokemon(level=16, pokemon_id='1'),  # Bulbasaur
+            Pokemon(level=16, pokemon_id='4'),  # Charmander
+            Pokemon(level=16, pokemon_id='7')   # Squirtle
         ]
 
         self.player.roster_add_pokemon(starters.pop(starters.index(random.choice(starters))))
         self.opponent.roster_add_pokemon(starters.pop(starters.index(random.choice(starters))))
 
-        self.player.roster_add_pokemon(Pokemon('25', level_range()))    # Pikachu
-        self.player.roster_add_pokemon(Pokemon('12', level_range()))    # Butterfree
-        self.player.roster_add_pokemon(Pokemon('17', level_range()))    # Pidgeotto
-        self.player.roster_add_pokemon(Pokemon('35', level_range()))    # Clefairy
+        self.player.roster_add_pokemon(Pokemon('25', level_range()))     # Pikachu
+        self.player.roster_add_pokemon(Pokemon('12', level_range()))     # Butterfree
+        self.player.roster_add_pokemon(Pokemon('17', level_range()))     # Pidgeotto
+        self.player.roster_add_pokemon(Pokemon('35', level_range()))     # Clefairy
 
-        self.opponent.roster_add_pokemon(Pokemon('23', level_range()))  # Ekans
-        self.opponent.roster_add_pokemon(Pokemon('27', level_range()))  # Sandshrew
-        self.opponent.roster_add_pokemon(Pokemon('32', level_range()))  # Nidoran
-        self.opponent.roster_add_pokemon(Pokemon('37', level_range()))  # Vulpix
+        self.opponent.roster_add_pokemon(Pokemon('125', level_range()))  # Electabuzz
+        self.opponent.roster_add_pokemon(Pokemon('27', level_range()))   # Sandshrew
+        self.opponent.roster_add_pokemon(Pokemon('32', level_range()))   # Nidoran
+        self.opponent.roster_add_pokemon(Pokemon('37', level_range()))   # Vulpix
 
         self.player.item_receive(Item('17'))    # Potion
         self.player.item_receive(Item('17'))    # Potion
         self.player.item_receive(Item('26'))    # Super Potion
 
         self.opponent.item_receive(Item('17'))    # Potion
+        self.opponent.item_receive(Item('17'))    # Potion
         self.opponent.item_receive(Item('26'))    # Super Potion
 
         self.battle(self.opponent)
+
+    ###
 
     def battle(self, trainer):
         print_pause('{} {} has challenged you to a fight!'.format(trainer.title, trainer.name))
@@ -82,7 +85,7 @@ class Main:
 
                 if action:
                     if isinstance(action, Ability):
-                        self.attack(opponent, action)
+                        self.attack_turn(opponent, action)
                     if isinstance(action, Item):
                         if not self.player.item_use(action):
                             break
@@ -93,22 +96,22 @@ class Main:
 
                     turn_over = True
 
-    def attack(self, opponent, action):
+    def attack_turn(self, opponent, action):
         opponent_decision = opponent.computer_ai_turn()
 
         if isinstance(opponent_decision, Ability):
             turn_order = self.determine_turn(opponent, action, opponent_decision)
 
             for pokemon, enemy, skill in turn_order:
-                pokemon.attack(enemy, skill)
-                if self.check_conditions(opponent):
+                pokemon.attack_turn(enemy, skill)
+                if self.pokemon_condition_changed(opponent):
                     break
 
         elif isinstance(opponent_decision, Item):
             opponent.item_use(opponent_decision)
             self.free_turn_player(opponent, action)
 
-    def check_conditions(self, opponent):
+    def pokemon_condition_changed(self, opponent):
         if opponent.current_pokemon.fainted:
             print '{} has fainted!'.format(opponent.current_pokemon.nickname)
 
@@ -197,8 +200,8 @@ class Main:
                             print_pause('Go, {}!\n'.format(pokemon.nickname))
 
                             opponents_skill = opponent.computer_ai_turn()
-                            opponent.current_pokemon.attack(pokemon, opponents_skill)
-                            self.check_conditions(self.player)
+                            opponent.current_pokemon.attack_turn(pokemon, opponents_skill)
+                            self.pokemon_condition_changed(self.player)
 
                             print
                             return True
@@ -208,7 +211,7 @@ class Main:
                 return False
 
     def menu_item(self, *args):
-        inventory = self.player.display_in_battle_inventory()
+        inventory = self.player.battle_inventory()
 
         items = {}
         amount = {}
@@ -223,8 +226,8 @@ class Main:
 
         choice_list = dict(enumerate((key for key in amount.iterkeys()), start=1))
 
-        for item_type, item_list in choice_list.iteritems():    # todo: Find a way to also show the KEY of the item
-            print '{}: {} [amt: {}]'.format(item_type, item_list.capitalize(), amount[item_list])
+        for number, item in choice_list.iteritems():    # todo: Find a way to also show the KEY of the item
+            print '{}: {} [amt: {}]'.format(number, item.capitalize(), amount[item])
 
         choice = raw_input('\nWhat will you choose? [#]: ')
         print
@@ -263,7 +266,7 @@ class Main:
 
     def battle_knockout(self, trainer):
         trainer.knocked_out.append(trainer.current_pokemon)
-        pokemon_choices = trainer.retrieve_capable_roster()
+        pokemon_choices = trainer.roster_retrieve_capable_pokemon()
 
         if pokemon_choices:
             self.battle_swap(pokemon_choices, trainer)
@@ -279,7 +282,7 @@ class Main:
                 choice = raw_input('{} is about to send out {}. Swap pokemon? [y/n]: '
                                    .format(trainer.name, new_pokemon.nickname))
                 if choice == 'y':
-                    roster = self.player.retrieve_capable_roster()
+                    roster = self.player.roster_retrieve_capable_pokemon()
                     for slot, pokemon in enumerate(roster, start=1):
                         print '{}: {} ({}), {}/{} hp'.format(slot, *pokemon.retrieve_pokemon_sheet_stats())
                     pokemon_roster_number = raw_input('\nWho do you want to send out? [#]: ')
@@ -341,15 +344,15 @@ class Main:
         opponent_action = opponent.computer_ai_turn()
 
         if isinstance(opponent_action, Ability):
-            opponent.current_pokemon.attack(self.player.current_pokemon, opponent_action)
-            self.check_conditions(self.player)
+            opponent.current_pokemon.attack_turn(self.player.current_pokemon, opponent_action)
+            self.pokemon_condition_changed(self.player)
 
         if isinstance(opponent_action, Item):
             opponent.item_use(opponent_action)
 
     def free_turn_player(self, opponent, players_skill):
-        self.player.current_pokemon.attack(opponent.current_pokemon, players_skill)
-        self.check_conditions(opponent)
+        self.player.current_pokemon.attack_turn(opponent.current_pokemon, players_skill)
+        self.pokemon_condition_changed(opponent)
 
 
 class Trainer:
@@ -365,19 +368,7 @@ class Trainer:
         self.current_pokemon = None
         self.knocked_out = []
 
-        self.inventory = self.initialize_inventory()
-
-        self.battling = False
-        self.out_of_pokemon = False
-        self.run_away_attempts = 1
-        self.badges = 0
-        self.money = 0
-
-    ##
-
-    @staticmethod
-    def initialize_inventory():
-        pocket_slots = {
+        self.inventory = {
             'Items': [],
             'Medicine': [],
             'Poke Balls': [],
@@ -388,20 +379,25 @@ class Trainer:
             'Key Items': []
         }
 
-        return pocket_slots
+        self.battling = False
+        self.out_of_pokemon = False
+        self.run_away_attempts = 1
+        self.badges = 0
+        self.money = 0
 
-    def has_any_items(self):
-        lst = []
-        for item_category, list in self.inventory.iteritems():
-            for item in list:
-                lst.append(item)
+    def __repr__(self):
+        return 'Trainer(title={}, name={}, computer={})'.format(self.title, self.name, self.computer)
 
-        return len(lst) > 0
+    ###
 
-    def display_inventory(self):
-        pass
+    def inventory_has_items(self):
+        inventory = []
+        for item_category, item_list in self.inventory.iteritems():
+            for item in item_list:
+                inventory.append(item)
+        return len(inventory) > 0
 
-    def display_in_battle_inventory(self):
+    def battle_inventory(self):
         keys = ['Medicine', 'Poke Balls', 'Battle Items']
         show = {key: value for key, value in self.inventory.iteritems() if key in keys}
         return show
@@ -462,17 +458,15 @@ class Trainer:
 
     ###
 
-    def pokemon_roster(self):
-        return {x: y.name.capitalize() for x, y in self.roster.iteritems() if y}
+    def roster_display(self):
+        return {x: y.nickname for x, y in self.roster.iteritems() if y}
 
-    def retrieve_capable_roster(self):
+    def roster_retrieve_capable_pokemon(self):
         pokemon_choices = []
         for slot, pokemon in self.roster.iteritems():
             if pokemon and pokemon not in self.knocked_out:
                 pokemon_choices.append(pokemon)
         return pokemon_choices
-
-    ###
 
     def roster_add_pokemon(self, pokemon):
         open_slots = [x for x, y in self.roster.iteritems() if y == '']
@@ -493,13 +487,10 @@ class Trainer:
     ###
 
     def computer_ai_turn(self):
-        # Basic AI, will just choose a move that does damage, and then attack. Add difficulties?
-        # TODO: Strongest ability table so pokemon will always use super effective if availible?
-
         roll = random.randint(0, 100)
         pokemon = self.current_pokemon
 
-        if roll > 10 or not self.has_any_items() or pokemon.current_hp == pokemon.max_hp:
+        if roll > 10 or not self.inventory_has_items() or pokemon.current_hp == pokemon.max_hp:
             moves_to_use = []
             for slot, move in pokemon.skill_set.iteritems():
                 if move and not move.damage_type == 'status' and not move.pp == 0:
@@ -508,7 +499,7 @@ class Trainer:
 
         elif roll <= 10:
             items_to_use = []
-            for item_category, item_list in self.display_in_battle_inventory().iteritems():
+            for item_category, item_list in self.battle_inventory().iteritems():
                 for item in item_list:
                     if item.purpose == 'healing':            # Temporary
                         items_to_use.append(item)
@@ -558,9 +549,8 @@ class Pokemon:
         self.critical_stage = 0
 
     def __repr__(self):
-        return 'Pokemon(pokemon_id="{}", level={}, nickname="{}")'.format(self.pokemon_id, self.level, self.nickname)
-
-    ###
+        return 'Pokemon(pokemon_id="{}", level={}, nickname="{}")'.format(
+            self.pokemon_id, self.level, self.nickname)
 
     def gather_pokemon_evolution(self):
         #evolution_triggers = {x['id']: x['identifier'] for x in csv_read('evolution_triggers.csv')}
@@ -932,6 +922,9 @@ class Ability:
         self.move_type = self.information['move_type']
         self.accuracy = self.information['accuracy']
 
+    def __repr__(self):
+        return 'Ability(move_id={})'.format(self.move_id)
+
     def retrieve_damage_modifier(self, target_type_id, secondary_type_id=None):
         """ Retrieves the damage modifier against pokemon's type """
 
@@ -1010,6 +1003,8 @@ class Ability:
 
 
 class Item:
+    """ An instance of an item to be used in a players inventory"""
+
     def __init__(self, item_id):
         self.item_id = item_id
 
@@ -1026,7 +1021,7 @@ class Item:
         self.pocket_slot = self.gather_pocket_slot()
         self.gather_item_prose()
 
-    def __str__(self):
+    def __repr__(self):
         return 'Item(item_id={})'.format(self.item_id)
 
     def gather_base_item_data(self):
