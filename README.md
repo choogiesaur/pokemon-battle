@@ -4,6 +4,10 @@ pokemon-battle
 Attempt at an accurate simulation of a 1v1 pokemon battle as a coding exercise, coded in **Python 2.7.6**. 
 All csv data was received from https://github.com/veekun/pokedex.
 
+Note: I went out of my way to circumvent using the database structure pokedex provides because I am unfamiliar with data bases and
+wanted to get something working immediately. This will probably end up being a mistake down the line, but it's still a good experience
+with handling data.
+
 ----
 
 If you run the python script from the zip, a battle simulation should be up with a bit implemented. 
