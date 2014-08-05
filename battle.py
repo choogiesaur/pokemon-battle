@@ -4,6 +4,8 @@ import random
 import sys
 from time import sleep
 
+# Logic is mixed between main and trainer classes for decisions
+# It's becoming increasingly convoluted how I handle turns / skipping them
 
 csv_read = lambda name: csv.DictReader(open(os.path.join(os.getcwd(), 'pokemon data', name)))
 print_pause = lambda msg, sleep_time=2: (sys.stdout.write(msg+'\n'), sleep(sleep_time))
@@ -13,6 +15,7 @@ class Main:
 
     def __init__(self):
         ## Having two full rosters of pokemon makes the load time ~1.30 seconds, make that better
+
         level_range = lambda: random.randint(12, 17)
 
         self.player = Trainer('Player', 'Red', computer=False)
@@ -36,6 +39,13 @@ class Main:
         self.opponent.roster_add_pokemon(Pokemon('27', level_range()))  # Sandshrew
         self.opponent.roster_add_pokemon(Pokemon('32', level_range()))  # Nidoran
         self.opponent.roster_add_pokemon(Pokemon('37', level_range()))  # Vulpix
+
+        self.player.item_receive(Item('17'))    # Potion
+        self.player.item_receive(Item('17'))    # Potion
+        self.player.item_receive(Item('26'))    # Super Potion
+
+        self.opponent.item_receive(Item('17'))    # Potion
+        self.opponent.item_receive(Item('26'))    # Super Potion
 
         self.battle(self.opponent)
 
@@ -73,8 +83,57 @@ class Main:
                 if action:
                     if isinstance(action, Ability):
                         self.attack(opponent, action)
+                    if isinstance(action, Item):
+                        if not self.player.item_use(action):
+                            break
+                        self.free_turn_opponent(opponent)
+                    if action == 'Escape Failed.\n':
+                        print_pause(action)
+                        self.free_turn_opponent(opponent)
 
                     turn_over = True
+
+    def attack(self, opponent, action):
+        opponent_decision = opponent.computer_ai_turn()
+
+        if isinstance(opponent_decision, Ability):
+            turn_order = self.determine_turn(opponent, action, opponent_decision)
+
+            for pokemon, enemy, skill in turn_order:
+                pokemon.attack(enemy, skill)
+                if self.check_conditions(opponent):
+                    break
+
+        elif isinstance(opponent_decision, Item):
+            opponent.item_use(opponent_decision)
+            self.free_turn_player(opponent, action)
+
+    def check_conditions(self, opponent):
+        if opponent.current_pokemon.fainted:
+            print '{} has fainted!'.format(opponent.current_pokemon.nickname)
+
+            exp_earned = self.player.current_pokemon.calculate_experience(opponent.current_pokemon)
+            evs_earned = opponent.current_pokemon.retrieve_effort_values()
+            self.player.current_pokemon.receive_effort_values(evs_earned)
+            self.player.current_pokemon.receive_experience(exp_earned)
+
+            self.battle_knockout(opponent)
+
+            if opponent.out_of_pokemon:
+                print '{} is out of pokemon. You won!'.format(opponent.name)
+                self.player.battling = False
+
+            return True
+
+        if self.player.current_pokemon.fainted:
+            print '{} has fainted!'.format(self.player.current_pokemon.nickname)
+            self.battle_knockout(self.player)
+
+            if self.player.out_of_pokemon:
+                print 'You are out of pokemon. You lose!'
+                self.player.battling = False
+
+            return True
 
     ###
 
@@ -137,7 +196,7 @@ class Main:
                             self.player.current_pokemon = pokemon
                             print_pause('Go, {}!\n'.format(pokemon.nickname))
 
-                            opponents_skill = opponent.computer_ai__turn()
+                            opponents_skill = opponent.computer_ai_turn()
                             opponent.current_pokemon.attack(pokemon, opponents_skill)
                             self.check_conditions(self.player)
 
@@ -148,9 +207,39 @@ class Main:
                 print
                 return False
 
-    def menu_item(self, *args):                 # TODO: set up items class, items system
-        self.player.display_inventory()
-        print 'No items.\n'
+    def menu_item(self, *args):
+        inventory = self.player.display_in_battle_inventory()
+
+        items = {}
+        amount = {}
+        for item_type, item_list in inventory.iteritems():
+            for item in item_list:
+                if item.name in [x for x in items.iterkeys()]:
+                    amount[item.name] += 1
+                    items[item.name].append(item)
+                else:
+                    amount[item.name] = 1
+                    items[item.name] = [item]
+
+        choice_list = dict(enumerate((key for key in amount.iterkeys()), start=1))
+
+        for item_type, item_list in choice_list.iteritems():    # todo: Find a way to also show the KEY of the item
+            print '{}: {} [amt: {}]'.format(item_type, item_list.capitalize(), amount[item_list])
+
+        choice = raw_input('\nWhat will you choose? [#]: ')
+        print
+
+        if choice.isdigit() and choice_list.get(int(choice), None):
+            item_choice = choice_list[int(choice)]
+            item = items[item_choice].pop(0)
+
+            if item.purpose != 'healing':   # TODO
+                print 'No item types other than healing have been coded to work in the game yet.\n'
+                items[item_choice].append(item)
+                return False
+
+            return item
+
         return False
 
     def menu_run(self, opponent):
@@ -167,73 +256,10 @@ class Main:
             self.player.battling = False
 
         else:
-            print 'Escape failed.\n'
-
-            opponents_skill = opponent.computer_ai__turn()
-            opponent.current_pokemon.attack(self.player.current_pokemon, opponents_skill)
-            self.check_conditions(self.player)
-
             self.player.run_away_attempts += 1
-
-        return True
+            return 'Escape failed.\n'
 
     ###
-
-    def attack(self, opponent, action):
-        turn_order = self.determine_turn(opponent, action)
-
-        for pokemon, enemy, skill in turn_order:
-            pokemon.attack(enemy, skill)
-            if self.check_conditions(opponent):
-                break
-
-    def check_conditions(self, opponent):
-        if opponent.current_pokemon.fainted:
-            print '{} has fainted!'.format(opponent.current_pokemon.nickname)
-
-            exp_earned = self.player.current_pokemon.calculate_experience(opponent.current_pokemon)
-            evs_earned = opponent.current_pokemon.retrieve_effort_values()
-            self.player.current_pokemon.receive_effort_values(evs_earned)
-            self.player.current_pokemon.receive_experience(exp_earned)
-
-            self.battle_knockout(opponent)
-
-            if opponent.out_of_pokemon:
-                print '{} is out of pokemon. You won!'.format(opponent.name)
-                self.player.battling = False
-
-            return True
-
-        if self.player.current_pokemon.fainted:
-            print '{} has fainted!'.format(self.player.current_pokemon.nickname)
-            self.battle_knockout(self.player)
-
-            if self.player.out_of_pokemon:
-                print 'You are out of pokemon. You lose!'
-                self.player.battling = False
-
-            return True
-
-    def determine_turn(self, opponent, players_skill):
-        player_pokemon = self.player.current_pokemon
-        opponent_pokemon = opponent.current_pokemon
-
-        player_speed = player_pokemon.stats['speed']['total']
-        opponent_speed = opponent_pokemon.stats['speed']['total']
-
-        opponents_skill = opponent.computer_ai__turn()
-
-        player_tuple = (player_pokemon, opponent_pokemon, players_skill)
-        opponent_tuple = (opponent_pokemon, player_pokemon, opponents_skill)
-
-        if players_skill.priority == opponents_skill.priority:
-            if player_speed > opponent_speed:
-                return player_tuple, opponent_tuple
-            return opponent_tuple, player_tuple
-
-        if players_skill.priority > opponents_skill.priority:
-            return player_tuple, opponent_tuple
-        return opponent_tuple, player_tuple
 
     def battle_knockout(self, trainer):
         trainer.knocked_out.append(trainer.current_pokemon)
@@ -292,6 +318,39 @@ class Main:
 
                         return True
 
+    def determine_turn(self, opponent, players_skill, opponents_skill):
+        player_pokemon = self.player.current_pokemon
+        opponent_pokemon = opponent.current_pokemon
+
+        player_speed = player_pokemon.stats['speed']['total']
+        opponent_speed = opponent_pokemon.stats['speed']['total']
+
+        player_tuple = (player_pokemon, opponent_pokemon, players_skill)
+        opponent_tuple = (opponent_pokemon, player_pokemon, opponents_skill)
+
+        if players_skill.priority == opponents_skill.priority:
+            if player_speed > opponent_speed:
+                return player_tuple, opponent_tuple
+            return opponent_tuple, player_tuple
+
+        if players_skill.priority > opponents_skill.priority:
+            return player_tuple, opponent_tuple
+        return opponent_tuple, player_tuple
+
+    def free_turn_opponent(self, opponent):
+        opponent_action = opponent.computer_ai_turn()
+
+        if isinstance(opponent_action, Ability):
+            opponent.current_pokemon.attack(self.player.current_pokemon, opponent_action)
+            self.check_conditions(self.player)
+
+        if isinstance(opponent_action, Item):
+            opponent.item_use(opponent_action)
+
+    def free_turn_player(self, opponent, players_skill):
+        self.player.current_pokemon.attack(opponent.current_pokemon, players_skill)
+        self.check_conditions(opponent)
+
 
 class Trainer:
     """ An object representing player/CPU capable of fighting """
@@ -306,7 +365,7 @@ class Trainer:
         self.current_pokemon = None
         self.knocked_out = []
 
-        self.inventory = []
+        self.inventory = self.initialize_inventory()
 
         self.battling = False
         self.out_of_pokemon = False
@@ -316,19 +375,92 @@ class Trainer:
 
     ##
 
-    def item_receive(self):
-        pass
+    @staticmethod
+    def initialize_inventory():
+        pocket_slots = {
+            'Items': [],
+            'Medicine': [],
+            'Poke Balls': [],
+            'TMs and HMs': [],
+            'Berries': [],
+            'Mail': [],
+            'Battle Items': [],
+            'Key Items': []
+        }
 
-    def item_use(self):
-        pass
+        return pocket_slots
 
-    def item_delete(self):
-        pass
+    def has_any_items(self):
+        lst = []
+        for item_category, list in self.inventory.iteritems():
+            for item in list:
+                lst.append(item)
 
-    ###
+        return len(lst) > 0
 
     def display_inventory(self):
         pass
+
+    def display_in_battle_inventory(self):
+        keys = ['Medicine', 'Poke Balls', 'Battle Items']
+        show = {key: value for key, value in self.inventory.iteritems() if key in keys}
+        return show
+
+    def item_receive(self, item):
+        slot = item.pocket_slot
+        self.inventory[slot].append(item)
+
+    def item_use(self, item):
+        if item.purpose == 'healing':
+            if self.computer:
+                pokemon = self.current_pokemon
+                max_heal = pokemon.max_hp - pokemon.current_hp
+                amount = int(''.join(x for x in item.prose if x.isdigit()))
+                healed = amount if amount < max_heal else max_heal
+
+                print_pause('{} used {} on {}, and healed for {}!\n'.format(
+                    self.name, item.name, pokemon.nickname, healed))
+
+                self.inventory[item.pocket_slot].remove(item)
+                pokemon.current_hp += healed
+
+            else:
+                for slot, pokemon in self.roster.iteritems():
+                    if pokemon:
+                        print '{}: {} ({}), {}/{} hp'.format(slot+1, *pokemon.retrieve_pokemon_sheet_stats())
+
+                choice = raw_input('\nWho do you want to use {} on? [#]: '.format(item.proper_name))
+                if choice.isdigit() and self.roster.get(int(choice)-1, None):
+                    pokemon = self.roster[int(choice)-1]
+
+                    confirm_choice = raw_input('Use {} on {}? [y/n]: '.format(
+                        item.proper_name, pokemon.nickname))
+
+                    if confirm_choice == 'y':
+                        if pokemon.current_hp == pokemon.max_hp:
+                            print '{} already has full HP.\n'.format(pokemon.nickname)
+                            return False
+
+                        elif pokemon.current_hp == 0:
+                            print "{} is out of HP.\n".format(pokemon.nickname)
+                            return False
+
+                        else:
+                            max_heal = pokemon.max_hp - pokemon.current_hp
+                            amount = int(''.join(x for x in item.prose if x.isdigit()))
+                            healed = amount if amount < max_heal else max_heal
+
+                            print_pause('Used {} on {}, and healed for {}!\n'.format(
+                                item.name, pokemon.nickname, healed))
+
+                            self.inventory[item.pocket_slot].remove(item)
+                            pokemon.current_hp += healed
+                            return True
+
+    def item_delete(self, item):
+        pass
+
+    ###
 
     def pokemon_roster(self):
         return {x: y.name.capitalize() for x, y in self.roster.iteritems() if y}
@@ -360,18 +492,27 @@ class Trainer:
 
     ###
 
-    def computer_ai__turn(self):
+    def computer_ai_turn(self):
         # Basic AI, will just choose a move that does damage, and then attack. Add difficulties?
         # TODO: Strongest ability table so pokemon will always use super effective if availible?
 
-        current_pokemon = self.current_pokemon
+        roll = random.randint(0, 100)
+        pokemon = self.current_pokemon
 
-        moves_to_use = []
-        for slot, move in current_pokemon.skill_set.iteritems():
-            if move and not move.damage_type == 'status' and not move.pp == 0:
-                moves_to_use.append(move)
+        if roll > 10 or not self.has_any_items() or pokemon.current_hp == pokemon.max_hp:
+            moves_to_use = []
+            for slot, move in pokemon.skill_set.iteritems():
+                if move and not move.damage_type == 'status' and not move.pp == 0:
+                    moves_to_use.append(move)
+            return random.choice(moves_to_use)
 
-        return random.choice(moves_to_use)
+        elif roll <= 10:
+            items_to_use = []
+            for item_category, item_list in self.display_in_battle_inventory().iteritems():
+                for item in item_list:
+                    if item.purpose == 'healing':            # Temporary
+                        items_to_use.append(item)
+            return random.choice(items_to_use)
 
 
 class Pokemon:
@@ -872,12 +1013,53 @@ class Item:
     def __init__(self, item_id):
         self.item_id = item_id
 
-        pass
+        self.base = self.gather_base_item_data()
+        self.name = self.base['identifier']
+        self.proper_name = self.name.capitalize()
+        self.fling_power = self.base['fling_power']
+        self.flint_effect_id = self.base['fling_effect_id']
+        self.cost = self.base['cost']
 
-    def gather_pokemon_ability(self):
-        pass
+        self.purpose, self.pocket_id = self.gather_item_category()
+        self.prose = self.gather_item_prose()
+        self.flags = self.gather_item_flags()
+        self.pocket_slot = self.gather_pocket_slot()
+        self.gather_item_prose()
 
-    pass
+    def __str__(self):
+        return 'Item(item_id={})'.format(self.item_id)
+
+    def gather_base_item_data(self):
+        for item in csv_read('items.csv'):
+            if item['id'] == self.item_id:
+                return item
+
+    def gather_item_category(self):
+        for cat in csv_read('item_categories.csv'):
+            if cat['id'] == self.base['category_id']:
+                return cat['identifier'], cat['pocket_id']
+
+    def gather_item_flags(self):
+        flags = {flag['id']: flag['identifier'] for flag in csv_read('item_flags.csv')}
+
+        usability = []
+        for item in csv_read('item_flag_map.csv'):
+            if item['item_id'] == self.item_id:
+                usability.append(flags[item['item_flag_id']])
+            if item['item_id'] == str(int(self.item_id)+1):
+                break
+        return usability
+
+    def gather_pocket_slot(self):
+        for x in csv_read('item_pocket_names.csv'):
+            if x['item_pocket_id'] == self.pocket_id:
+                return x['name']
+
+    def gather_item_prose(self):
+        ## Item long description is here
+        for item in csv_read('item_prose.csv'):
+            if item['item_id'] == self.item_id:
+                return item['short_effect']
 
 
 if __name__ == '__main__':
