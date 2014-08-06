@@ -3,6 +3,13 @@ pokemon-battle
 
 Attempt at an accurate simulation of a 1v1 pokemon battle as a coding exercise, coded in **Python 2.7.6**. 
 
+----
+
+All data used here is intellectual property of Nintendo, Creatures, inc., and GAME FREAK, inc. and is protected by
+various copyrights and trademarks. I neither own nor claim to own any portion of the Pokemon Franchise. My project is 
+an unaffiliated, fan-creation based off of products owned by the companies listed above. I have no intention of now or
+ever commercially distrubuting my software and is only for demonstration purposes. 
+
 All csv data used in this project was from https://github.com/veekun/pokedex.
 
 Note: I went out of my way to circumvent using the database structure pokedex provides because I am unfamiliar with databases and
