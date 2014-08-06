@@ -1,5 +1,6 @@
 # Compiled source #
 ###################
+*.pyc
 *.com
 *.class
 *.dll
@@ -38,7 +39,6 @@ Thumbs.db
 
 # Specific files and folders #
 ##############################
-*.pyc
 unused data
 the testing file.py
 the competition.py
